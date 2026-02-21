@@ -36,3 +36,6 @@ Thumbs.db
 .idea/
 *.log
 
+# project prompts
+.github/prompts/
+
