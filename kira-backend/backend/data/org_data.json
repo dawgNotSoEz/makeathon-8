@@ -1,0 +1,11 @@
+{
+  "organization_name": "Acme Financial Services Ltd",
+  "industry": "banking",
+  "sub_sector": "retail_banking",
+  "business_model": "Commercial banking and financial services",
+  "annual_revenue": "500M-1B USD",
+  "employee_count": "1000-5000",
+  "geographical_presence": ["India", "Singapore", "UAE"],
+  "compliance_maturity_level": "medium",
+  "sector_tags": ["banking", "retail_banking", "digital_payments", "risk_management"]
+}

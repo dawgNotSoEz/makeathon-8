@@ -1,0 +1,25 @@
+RBI DIGITAL BANKING GUIDELINES 2024
+
+1. INTRODUCTION
+The Reserve Bank of India issues these guidelines to regulate digital banking services and ensure consumer protection in the digital era.
+
+2. ELIGIBILITY CRITERIA
+Banks must maintain a minimum capital adequacy ratio of 12% to offer digital banking services.
+
+3. DIGITAL ONBOARDING
+Banks may use video-based KYC for customer onboarding subject to proper verification procedures.
+
+4. TRANSACTION LIMITS
+Daily transaction limits for digital payments shall not exceed INR 100,000 per customer.
+
+5. SECURITY REQUIREMENTS
+Banks must implement two-factor authentication for all digital transactions above INR 10,000.
+
+6. CUSTOMER CONSENT
+Explicit customer consent is required for activating digital banking services.
+
+7. DATA PROTECTION
+Banks must ensure encryption of all customer data in transit and at rest.
+
+8. COMPLIANCE REPORTING
+Quarterly compliance reports must be submitted to RBI within 15 days of quarter end.

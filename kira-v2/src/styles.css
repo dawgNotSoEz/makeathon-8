@@ -1,0 +1,58 @@
+@import url("https://api.fontshare.com/v2/css?f[]=ranade@400,500,600,700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0e0e10;
+  --bg-secondary: #141416;
+  --surface-primary: #1a1a1d;
+  --surface-card: #1f1f23;
+  --surface-elevated: #25252a;
+  --border-primary: #2e2e34;
+  --border-soft: #2a2a2f;
+  --text-primary: #e8e8ea;
+  --text-secondary: #b8b8bd;
+  --text-muted: #8a8a90;
+  --text-disabled: #5a5a60;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Ranade", Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+:focus-visible {
+  outline: 1px solid var(--border-primary);
+  outline-offset: 2px;
+}
+
+@layer components {
+  .kira-card {
+    @apply rounded-md border border-border-primary bg-surface-card p-6;
+  }
+
+  .kira-card-hover {
+    @apply transition-colors duration-200 hover:bg-surface-elevated;
+  }
+
+  .kira-section {
+    @apply mt-section;
+  }
+
+  .kira-heading {
+    @apply text-sm font-semibold uppercase tracking-[0.08em] text-text-secondary;
+  }
+}
