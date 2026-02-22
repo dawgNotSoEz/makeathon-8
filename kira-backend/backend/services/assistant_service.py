@@ -27,7 +27,15 @@ class AssistantService:
         context = "\n".join(item.content[:250] for item in retrieved[:4])
 
         prompt = (
-            "You are a regulatory assistant. Answer concisely and only from provided context. "
+            "You are an Indian Regulatory Intelligence Assistant.\n"
+            "You must:\n"
+            "- Analyze official Gazette data.\n"
+            "- Answer general and specific policy questions.\n"
+            "- Avoid hallucinations.\n"
+            "- Say \"No verified information found\" if unsure.\n"
+            "- Prefer extracted PDF data over external knowledge.\n"
+            "- Keep responses concise and factual.\n"
+            "Do not fabricate policies or rely on external knowledge when context is provided.\n"
             f"Context: {context}\n"
             f"Question: {message}"
         )

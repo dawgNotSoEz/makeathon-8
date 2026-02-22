@@ -11,7 +11,7 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { apiClient, type PolicyListItem } from "../api/client";
+import { apiClient, type PolicyAnalysis, type PolicyListItem } from "../api/client";
 import { useDocumentSelectionStore } from "../stores/documentSelectionStore";
 
 type DocumentRow = {
@@ -23,6 +23,8 @@ type DocumentRow = {
   sector: string;
   status: string;
   aiStatus: string;
+  sourceUrl?: string;
+  rawContent?: string;
 };
 
 type ControlsForm = {
@@ -85,6 +87,10 @@ export function DocumentListPage() {
   const navigate = useNavigate();
   const [rawPolicyModal, setRawPolicyModal] = useState<RawPolicyModalState | null>(null);
   const [documents, setDocuments] = useState<DocumentRow[]>(sampleDocuments);
+  const [policyAnalyses, setPolicyAnalyses] = useState<PolicyAnalysis[]>([]);
+  const [policyQuestions, setPolicyQuestions] = useState<Record<string, string>>({});
+  const [policyAnswers, setPolicyAnswers] = useState<Record<string, string>>({});
+  const [policyLoading, setPolicyLoading] = useState<Record<string, boolean>>({});
 
   const { register, watch, setValue } = useForm<ControlsForm>({
     defaultValues: {
@@ -112,11 +118,49 @@ export function DocumentListPage() {
       aiStatus: policy.status === "Processed" ? "Processed" : "Queued",
     });
 
-    const loadPolicies = async () => {
+    const mapGazetteToRow = (item: unknown, index: number): DocumentRow | null => {
+      const record = typeof item === "object" && item !== null ? (item as Record<string, unknown>) : null;
+      const id = String(record?.id ?? `gazette-${index}`);
+      const subject = String(record?.subject ?? "").trim();
+      const url = String(record?.url ?? "").trim();
+      const text = String(record?.text ?? "").trim();
+
+      if (!subject && !url) {
+        return null;
+      }
+
+      return {
+        id,
+        type: "Gazette",
+        title: subject || id,
+        fileName: id,
+        date: new Date().toISOString().slice(0, 10),
+        sector: "Government",
+        status: "Reviewed",
+        aiStatus: "Processed",
+        sourceUrl: url || undefined,
+        rawContent: text || undefined,
+      };
+    };
+
+    const loadDocuments = async () => {
       try {
-        const policies = await apiClient.getPolicies();
-        if (active && policies.length > 0) {
-          setDocuments(policies.map(mapPolicyToRow));
+        const [policiesResult, gazettesResult] = await Promise.all([
+          apiClient.getPolicies().catch(() => [] as PolicyListItem[]),
+          apiClient.getGazettes().catch(() => [] as unknown),
+        ]);
+
+        const policyRows = policiesResult.map(mapPolicyToRow);
+        const gazetteRows = Array.isArray(gazettesResult)
+          ? gazettesResult
+              .map(mapGazetteToRow)
+              .filter((item): item is DocumentRow => item !== null)
+          : [];
+
+        const merged = [...policyRows, ...gazetteRows];
+
+        if (active) {
+          setDocuments(merged.length > 0 ? merged : sampleDocuments);
         }
       } catch {
         if (active) {
@@ -125,7 +169,29 @@ export function DocumentListPage() {
       }
     };
 
-    void loadPolicies();
+    void loadDocuments();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadPolicyAnalyses = async () => {
+      try {
+        const response = await apiClient.getPolicyAnalyses();
+        if (active) {
+          setPolicyAnalyses(Array.isArray(response) ? response : []);
+        }
+      } catch {
+        if (active) {
+          setPolicyAnalyses([]);
+        }
+      }
+    };
+
+    void loadPolicyAnalyses();
     return () => {
       active = false;
     };
@@ -155,11 +221,17 @@ export function DocumentListPage() {
 
   const allVisibleSelected = filteredRows.length > 0 && filteredRows.every((row) => selectedIds[row.id]);
 
-  const openDocument = (documentId: string) => {
-    navigate(`/documents/analysis/${documentId}`);
+  const openDocument = (row: DocumentRow) => {
+    navigate(`/documents/analysis/${row.id}`);
   };
 
   const openRawPolicy = async (row: DocumentRow) => {
+    if (row.rawContent || row.sourceUrl) {
+      const content = row.rawContent ?? (row.sourceUrl ? `View Gazette PDF:\n${row.sourceUrl}` : "No policy text available.");
+      setRawPolicyModal({ id: row.id, title: row.title, fileName: row.fileName, content });
+      return;
+    }
+
     setRawPolicyModal({ id: row.id, title: row.title, fileName: row.fileName, content: "Loading policy content..." });
     try {
       const detail = await apiClient.getPolicyById(row.id);
@@ -202,7 +274,7 @@ export function DocumentListPage() {
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              openDocument(row.original.id);
+              openDocument(row.original);
             }}
             className="text-left font-medium text-text-primary hover:underline"
           >
@@ -216,7 +288,7 @@ export function DocumentListPage() {
         cell: ({ row }) => (
           <button
             type="button"
-            onClick={() => openRawPolicy(row.original)}
+            onClick={() => openDocument(row.original)}
             className="text-left text-text-primary hover:underline"
           >
             {row.original.fileName}
@@ -236,7 +308,7 @@ export function DocumentListPage() {
         cell: ({ row }) => <span className="text-sm text-text-secondary">{row.original.aiStatus}</span>,
       },
     ],
-    [allVisibleSelected, filteredRows, navigate, selectedIds, setManySelected, setSelected]
+    [allVisibleSelected, filteredRows, selectedIds, setManySelected, setSelected]
   );
 
   const table = useReactTable({
@@ -261,6 +333,37 @@ export function DocumentListPage() {
     }
   };
 
+  const askAboutRegulation = async (item: PolicyAnalysis) => {
+    const gazetteId = item?.gazette_id ?? "";
+    if (!gazetteId) {
+      return;
+    }
+
+    const question = (policyQuestions[gazetteId] ?? "").trim() || "Does this regulation affect banking?";
+
+    setPolicyLoading((prev) => ({ ...prev, [gazetteId]: true }));
+    try {
+      const response = await apiClient.queryPolicy({ question, gazette_id: gazetteId });
+      const answer = response?.answer ?? response?.error ?? "No verified information found in available gazette records.";
+      setPolicyAnswers((prev) => ({ ...prev, [gazetteId]: answer }));
+    } catch {
+      setPolicyAnswers((prev) => ({ ...prev, [gazetteId]: "No verified information found in available gazette records." }));
+    } finally {
+      setPolicyLoading((prev) => ({ ...prev, [gazetteId]: false }));
+    }
+  };
+
+  const riskBadgeClass = (riskLevel: string | null | undefined) => {
+    const normalized = (riskLevel ?? "").toLowerCase();
+    if (normalized === "high") {
+      return "border-border-primary bg-surface-elevated text-text-primary";
+    }
+    if (normalized === "medium") {
+      return "border-border-soft bg-surface-primary text-text-primary";
+    }
+    return "border-border-soft bg-bg-secondary text-text-secondary";
+  };
+
   return (
     <div className="mx-auto w-full max-w-[1280px] px-8 pb-20 pt-12">
       <motion.section initial="hidden" animate="show" variants={fadeUp} transition={{ duration: 0.22 }} className="mb-8">
@@ -272,6 +375,69 @@ export function DocumentListPage() {
       </motion.section>
 
       <motion.section initial="hidden" animate="show" variants={fadeUp} transition={{ duration: 0.22 }} className="mb-6 flex flex-wrap items-center justify-between gap-6">
+        {policyAnalyses?.length > 0 ? (
+          <section className="mb-10 w-full" aria-label="Regulations Intelligence">
+            <div className="mb-4">
+              <h3 className="text-base font-semibold text-text-primary">Regulations Intelligence</h3>
+              <p className="mt-1 text-xs text-text-secondary">Structured LLM analysis from gazette records.</p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              {policyAnalyses?.slice(0, 8).map((item) => {
+                const gazetteId = item?.gazette_id ?? "";
+                const policyName = item?.analysis?.policy_name ?? item?.subject ?? "Unnamed regulation";
+                const ministry = item?.analysis?.ministry ?? "Unknown ministry";
+                const effectiveDate = item?.analysis?.effective_date ?? "N/A";
+                const riskLevel = item?.analysis?.risk_level ?? "Low";
+                const industries = item?.analysis?.industries_impacted ?? [];
+                const actions = item?.analysis?.compliance_actions_required ?? [];
+
+                return (
+                  <article key={gazetteId || policyName} className="rounded-md border border-border-primary bg-surface-card p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <h4 className="text-sm font-semibold text-text-primary">{policyName}</h4>
+                      <span className={["inline-flex rounded-full border px-2 py-0.5 text-xs font-medium", riskBadgeClass(riskLevel)].join(" ")}>
+                        {riskLevel}
+                      </span>
+                    </div>
+
+                    <p className="mt-2 text-xs text-text-secondary">Ministry: {ministry}</p>
+                    <p className="mt-1 text-xs text-text-secondary">Effective Date: {effectiveDate}</p>
+                    <p className="mt-3 text-xs font-medium text-text-primary">Industries Impacted</p>
+                    <p className="mt-1 text-sm text-text-secondary">{industries?.length > 0 ? industries.join(", ") : "Not specified"}</p>
+                    <p className="mt-3 text-xs font-medium text-text-primary">Compliance Actions</p>
+                    <p className="mt-1 text-sm text-text-secondary">{actions?.length > 0 ? actions.join("; ") : "Not specified"}</p>
+
+                    <div className="mt-4 flex flex-col gap-2">
+                      <input
+                        type="text"
+                        value={policyQuestions[gazetteId] ?? ""}
+                        onChange={(event) =>
+                          setPolicyQuestions((prev) => ({
+                            ...prev,
+                            [gazetteId]: event.target.value,
+                          }))
+                        }
+                        placeholder="Ask a compliance question"
+                        className="h-10 w-full rounded-md border border-border-soft bg-bg-secondary px-3 text-sm text-text-primary placeholder:text-text-muted focus:border-border-primary focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void askAboutRegulation(item)}
+                        disabled={Boolean(policyLoading[gazetteId])}
+                        className="inline-flex h-10 items-center justify-center rounded-md border border-border-primary bg-surface-elevated px-3 text-sm text-text-primary disabled:opacity-50"
+                      >
+                        Ask About This Regulation
+                      </button>
+                      {policyAnswers[gazetteId] ? <p className="text-sm text-text-secondary">{policyAnswers[gazetteId]}</p> : null}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
         <div className="w-full max-w-[420px]">
           <input
             {...register("search")}
@@ -409,7 +575,7 @@ export function DocumentListPage() {
                     <div>
                       <button
                         type="button"
-                        onClick={() => openDocument(row.original.id)}
+                        onClick={() => openDocument(row.original)}
                         className="text-left text-sm font-medium text-text-primary hover:underline"
                       >
                         {row.original.title}
@@ -429,6 +595,7 @@ export function DocumentListPage() {
               ))}
             </div>
           </div>
+
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
@@ -483,6 +650,7 @@ export function DocumentListPage() {
             </button>
           </div>
         </div>
+
       </motion.section>
 
       {rawPolicyModal ? (

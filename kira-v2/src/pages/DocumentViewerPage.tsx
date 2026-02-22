@@ -280,17 +280,20 @@ function ChartsTab() {
 
 type ChatMessage = { role: "assistant" | "user"; text: string };
 
+const suggestedQuestions = [
+  "What is this regulation about?",
+  "Does this affect banking sector?",
+  "What compliance actions are required?",
+  "What penalties are mentioned?",
+];
+
 function AIChatPanel() {
   const [draft, setDraft] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "assistant", text: "Document intake complete. Initial clause extraction confidence: 82%." },
-    { role: "user", text: "Highlight legal obligations that require workflow changes." },
-    { role: "assistant", text: "Two mandatory controls identified: retention enforcement and disclosure pre-approval sequencing." },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
 
-  const sendMessage = async () => {
-    const message = draft.trim();
+  const sendMessage = async (incomingMessage?: string) => {
+    const message = (incomingMessage ?? draft).trim();
     if (!message || isSending) {
       return;
     }
@@ -320,7 +323,22 @@ function AIChatPanel() {
         <p className="mt-2 text-sm text-text-secondary">Focused interpretation workspace for this document context.</p>
       </header>
 
+      <div className="mt-4 flex flex-wrap gap-2">
+        {suggestedQuestions.map((question) => (
+          <button
+            key={question}
+            type="button"
+            onClick={() => void sendMessage(question)}
+            disabled={isSending}
+            className="rounded-md border border-border-soft bg-surface-primary px-3 py-1.5 text-xs text-text-secondary hover:bg-surface-elevated disabled:opacity-50"
+          >
+            {question}
+          </button>
+        ))}
+      </div>
+
       <div className="mt-6 flex-1 space-y-4 overflow-y-auto pr-1">
+        {messages.length === 0 ? <p className="text-sm text-text-muted">Select a suggested question or type your own.</p> : null}
         {messages.map((message, index) => (
           <div
             key={`${message.role}-${index}`}
@@ -365,7 +383,7 @@ export function DocumentViewerPage() {
     let active = true;
     const runAnalysis = async () => {
       try {
-        const response = await apiClient.runAnalysis({ organizationProfile: DEFAULT_ORG_PROFILE });
+        const response = await apiClient.runAnalysis({ organizationProfile: DEFAULT_ORG_PROFILE, gazetteId: documentId });
         if (active) {
           setAnalysisResult(response);
           setAnalysisError(null);

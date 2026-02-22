@@ -7,6 +7,7 @@ export type OrganizationProfile = {
 
 export type AnalysisRunRequest = {
   organizationProfile: OrganizationProfile;
+  gazetteId?: string;
 };
 
 export type AnalysisRunResponse = {
@@ -56,6 +57,43 @@ export type PolicyDetailResponse = PolicyListItem & {
 export type HealthStatus = {
   status: string;
   checks: Record<string, string>;
+};
+
+export type GazetteData = unknown;
+
+export type PolicyAnalysis = {
+  gazette_id?: string | null;
+  subject?: string | null;
+  url?: string | null;
+  analysis?: {
+    policy_name?: string | null;
+    ministry?: string | null;
+    policy_type?: string | null;
+    date_of_issue?: string | null;
+    effective_date?: string | null;
+    industries_impacted?: string[];
+    departments_impacted?: string[];
+    compliance_actions_required?: string[];
+    penalties?: string | null;
+    risk_level?: string | null;
+  } | null;
+  fallback_text?: string | null;
+  error?: string | null;
+};
+
+export type PolicyQueryRequest = {
+  question: string;
+  gazette_id?: string;
+};
+
+export type PolicyQueryResponse = {
+  answer?: string | null;
+  error?: string | null;
+  sources?: Array<{
+    gazette_id: string;
+    subject: string;
+    chunk: string;
+  }>;
 };
 
 export const DEFAULT_ORG_PROFILE: OrganizationProfile = {
@@ -109,6 +147,8 @@ export const apiClient = {
   getHealth: () => request<HealthStatus>("/health", { method: "GET" }),
   getDashboard: () => request<DashboardSummaryResponse>("/api/dashboard", { method: "GET" }),
   getPolicies: () => request<PolicyListItem[]>("/api/policies", { method: "GET" }),
+  getGazettes: () => request<GazetteData>("/api/gazettes", { method: "GET" }),
+  getPolicyAnalyses: () => request<PolicyAnalysis[]>("/api/policy-analyses", { method: "GET" }),
   getPolicyById: (policyId: string) => request<PolicyDetailResponse>(`/api/policies/${encodeURIComponent(policyId)}`, { method: "GET" }),
   runAnalysis: (body: AnalysisRunRequest) =>
     request<AnalysisRunResponse>("/api/analysis/run", {
@@ -117,6 +157,11 @@ export const apiClient = {
     }),
   chatAssistant: (body: AssistantChatRequest) =>
     request<AssistantChatResponse>("/api/assistant/chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  queryPolicy: (body: PolicyQueryRequest) =>
+    request<PolicyQueryResponse>("/api/policy-query", {
       method: "POST",
       body: JSON.stringify(body),
     }),

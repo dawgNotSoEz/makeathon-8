@@ -2,9 +2,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import AnyHttpUrl, Field, SecretStr, ValidationError, field_validator
+from dotenv import load_dotenv
+from pydantic import AliasChoices, AnyHttpUrl, Field, SecretStr, ValidationError, field_validator
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -20,13 +24,17 @@ class Settings(BaseSettings):
 
     cors_origins: list[AnyHttpUrl] = Field(default_factory=list)
 
-    llm_provider: Literal["gemini", "mega"] = "mega"
+    llm_provider: Literal["auto", "openai", "gemini", "mega"] = "auto"
+
+    openai_api_key: SecretStr | None = None
+    openai_generation_model: str = "gpt-4o-mini"
+    openai_embedding_model: str = "text-embedding-3-small"
 
     gemini_api_key: SecretStr | None = None
     gemini_embedding_model: str = "models/gemini-embedding-001"
     gemini_generation_model: str = "models/gemini-2.5-flash"
 
-    mega_api_key: SecretStr | None = None
+    mega_api_key: SecretStr | None = Field(default=None, validation_alias=AliasChoices("MEGA_LLM_API_KEY", "MEGA_API_KEY"))
     mega_api_base_url: str = "https://api.megallm.ai/v1"
     mega_embedding_model: str = "mega-embedding-1"
     mega_generation_model: str = "mega-chat-1"
@@ -67,6 +75,15 @@ class Settings(BaseSettings):
             raise ValueError("rate_limit_per_minute must be greater than 0")
         return value
 
+    @field_validator("openai_api_key", "gemini_api_key", "mega_api_key", mode="before")
+    @classmethod
+    def normalize_empty_api_keys(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
     @field_validator("max_request_size_bytes")
     @classmethod
     def validate_request_size(cls, value: int) -> int:
@@ -83,10 +100,14 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_provider_keys(self) -> "Settings":
-        if self.llm_provider == "mega" and self.mega_api_key is None:
-            raise ValueError("MEGA_API_KEY is required when LLM_PROVIDER=mega")
+        if self.llm_provider == "openai" and self.openai_api_key is None:
+            raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER=openai")
         if self.llm_provider == "gemini" and self.gemini_api_key is None:
             raise ValueError("GEMINI_API_KEY is required when LLM_PROVIDER=gemini")
+        if self.llm_provider == "mega" and self.mega_api_key is None:
+            raise ValueError("MEGA_LLM_API_KEY (or MEGA_API_KEY) is required when LLM_PROVIDER=mega")
+        if self.llm_provider == "auto" and not any([self.openai_api_key, self.gemini_api_key, self.mega_api_key]):
+            raise ValueError("No LLM provider configured. Set OPENAI_API_KEY and/or GEMINI_API_KEY and/or MEGA_LLM_API_KEY")
         return self
 
 

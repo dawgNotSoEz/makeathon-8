@@ -10,7 +10,7 @@ from backend.core.logging_config import setup_logging
 from backend.middleware.limits import RateLimitMiddleware, RequestSizeLimitMiddleware
 from backend.middleware.metrics import MetricsMiddleware
 from backend.middleware.request_context import CorrelationIdMiddleware, RequestLoggingMiddleware
-from backend.routes import analysis, assistant, dashboard, health, metrics, registry
+from backend.routes import analysis, assistant, dashboard, gazettes, health, metrics, policy_query, registry
 from backend.schemas.common import RootResponse
 
 
@@ -31,8 +31,10 @@ allowed_origins = [str(origin) for origin in config.cors_origins]
 if config.environment == "dev":
     for dev_origin in (
         "http://localhost:5173",
+        "http://localhost:5174",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
         "http://127.0.0.1:3000",
     ):
         if dev_origin not in allowed_origins:
@@ -59,6 +61,8 @@ if config.enable_metrics_endpoint:
     app.include_router(metrics.router, prefix="/api", tags=["metrics"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"])
 app.include_router(registry.router, prefix="/api/policies", tags=["policies"])
+app.include_router(gazettes.router, prefix="/api", tags=["gazettes"])
+app.include_router(policy_query.router, prefix="/api", tags=["policy-query"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
 app.include_router(assistant.router, prefix="/api/assistant", tags=["assistant"])
 

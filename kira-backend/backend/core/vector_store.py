@@ -69,7 +69,7 @@ class VectorStoreClient:
         except Exception:
             logger.warning("vector_store_error_using_filesystem_fallback", exc_info=True)
 
-        filesystem = self._load_filesystem_documents()
+        filesystem = await asyncio.to_thread(self._load_filesystem_documents)
         return VectorDocumentsResponse(
             documents=filesystem.documents[:limit],
             metadatas=filesystem.metadatas[:limit],
@@ -91,7 +91,7 @@ class VectorStoreClient:
         except Exception:
             logger.warning("vector_store_error_using_filesystem_fallback", exc_info=True)
 
-        fallback = self._load_filesystem_documents()
+        fallback = await asyncio.to_thread(self._load_filesystem_documents)
         matched_documents: list[str] = []
         matched_metadatas: list[dict[str, object]] = []
         for idx, metadata in enumerate(fallback.metadatas):

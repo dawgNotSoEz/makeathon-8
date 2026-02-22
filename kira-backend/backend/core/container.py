@@ -8,6 +8,8 @@ from backend.core.vector_store import VectorStoreClient
 from backend.services.analysis_service import AnalysisService
 from backend.services.assistant_service import AssistantService
 from backend.services.dashboard_service import DashboardService
+from backend.services.pdfAnalyzer import PdfAnalyzerService
+from backend.services.policyQA import PolicyQAService
 
 
 @lru_cache(maxsize=1)
@@ -48,3 +50,13 @@ def get_assistant_service() -> AssistantService:
 @lru_cache(maxsize=1)
 def get_dashboard_service() -> DashboardService:
     return DashboardService(get_vector_store(), get_cache())
+
+
+@lru_cache(maxsize=1)
+def get_pdf_analyzer_service() -> PdfAnalyzerService:
+    return PdfAnalyzerService(get_llm_client())
+
+
+@lru_cache(maxsize=1)
+def get_policy_qa_service() -> PolicyQAService:
+    return PolicyQAService(get_llm_client(), get_pdf_analyzer_service())

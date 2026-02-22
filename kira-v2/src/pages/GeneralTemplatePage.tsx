@@ -365,6 +365,7 @@ export function GeneralTemplatePage() {
             </DashboardCard>
           </div>
         </motion.section>
+
       </div>
   );
 }

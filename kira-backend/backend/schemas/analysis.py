@@ -14,6 +14,7 @@ class AnalysisRunRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     organizationProfile: OrganizationProfile
+    gazetteId: str | None = None
 
 
 class RelevantPolicy(BaseModel):
