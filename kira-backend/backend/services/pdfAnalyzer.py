@@ -33,18 +33,18 @@ Rules:
 - Return strictly valid JSON.
 
 Return JSON using this exact schema:
-{
-  "policy_name": "",
-  "ministry": "",
-  "policy_type": "",
-  "date_of_issue": "",
-  "effective_date": "",
-  "industries_impacted": [],
-  "departments_impacted": [],
-  "compliance_actions_required": [],
-  "penalties": "",
-  "risk_level": ""
-}
+{{
+    "policy_name": "",
+    "ministry": "",
+    "policy_type": "",
+    "date_of_issue": "",
+    "effective_date": "",
+    "industries_impacted": [],
+    "departments_impacted": [],
+    "compliance_actions_required": [],
+    "penalties": "",
+    "risk_level": ""
+}}
 
 Gazette Subject: {subject}
 Gazette ID: {gazette_id}

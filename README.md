@@ -50,6 +50,8 @@ Create/update `kira-backend/.env` with required values:
 - `JWT_SECRET`
 - one or more LLM keys (`OPENAI_API_KEY`, `GEMINI_API_KEY`, or `MEGA_LLM_API_KEY`)
 
+Use your own API key if you want the project to be running.
+
 Optional examples:
 
 - `LLM_PROVIDER=auto`
